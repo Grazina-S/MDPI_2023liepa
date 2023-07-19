@@ -6,6 +6,8 @@ install.packages("metan")
 install.packages("toolStability")
 install.packages("patchwork") #reikalinga sukombinuoti plots
 install.packages("colorspace")
+install.packages("tidyverse")
+install.packages("rstatix")
 
 # laibrariai #########################
 library(readxl)
@@ -61,8 +63,8 @@ row2015 <- data.frame(year = 2015, use_year = "1", cut = NA, dmy = NA)
 #nera duomenu tais metais, noriu pridet kad butu tuscias stulpelis
 row2016 <- data.frame(year = 2016, use_year = "2", cut = NA, dmy = NA)
 
-dmy_fig_A <- dmy_fig %>% filter(use_year == "1") %>% rbind(row2015)
-dmy_fig_B <- dmy_fig %>% filter(use_year == "2") %>% rbind(row2016)
+dmy_fig_A <- dmy_fig %>% filter(use_year == "1") #%>% rbind(row2015)
+dmy_fig_B <- dmy_fig %>% filter(use_year == "2") #%>% rbind(row2016)
 
 spalvos <- c( "#26A63A",  "#9BB306", "#E1BB4E", "#FFC59E", "#F1F1F1")
 
@@ -92,9 +94,25 @@ dmy_fig2 <- dmy_stats %>% select(year, use_year, variable, mean) %>%
 dmy_fig_A2 <- dmy_fig2 %>% filter(use_year == "1") %>% select(-use_year)
 dmy_fig_B2 <- dmy_fig2 %>% filter(use_year == "2") %>% select(-use_year)
 
+#nemokejau pasidaryt su viena pivot_long komanda, tai darau skeliant ir vel suliejant
 
+dalisAa <- dmy_fig_A2 %>% select(c(year, cut1, cut2, cut3, cut4)) %>%
+  pivot_longer(cols = starts_with("cut"), names_to = "cut", values_to = "dmy")
+dalisAb <- dmy_fig_A2 %>% select(year, proc1, proc2, proc3, proc4) %>%
+  pivot_longer(cols = starts_with("proc"), names_to = "cut_proc", values_to = "proc")
+dalisAb$proc <- round(dalisAb$proc)
 
+# Group by year and check if sum of proc values within each year is equal to 100
+result <- dalisAb %>%
+  group_by(year) %>%
+  summarise(sum_proc = sum(proc, na.rm = TRUE))
+years_not_equal_100 <- result %>%
+  filter(sum_proc != 100) %>%
+  pull(year)
 
+print(years_not_equal_100)
+
+#blyn nemazai nelygu 100   2010 2015 2017 2018 2019
 
 
 

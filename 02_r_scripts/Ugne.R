@@ -8,6 +8,8 @@ install.packages("patchwork") #reikalinga sukombinuoti plots
 install.packages("colorspace")
 install.packages("tidyverse")
 install.packages("rstatix")
+install.packages("flextable")
+install.packages("rlist")
 
 # laibrariai #########################
 library(readxl)
@@ -19,6 +21,8 @@ library(toolStability)
 library(rstatix)
 library(patchwork)
 library(colorspace)
+library(flextable)
+library(rlist)
 
 # Nuskaitymas is excel #########################
 dmy <- read_excel("00_raw_data\\Ugnė_nuo 2009.xlsx", sheet = "DMY")
@@ -157,3 +161,64 @@ dmy_wrap <- dmy_wrap + theme_bw() + scale_y_continuous(limits = c(0, 14500), bre
 tiff(filename = "03_plots/DMY_su_wrap.tif", width = 21, height = 22, units =  "cm", res = 600)
 dmy_wrap
 dev.off()
+
+# ANOVA ir HSD ####
+
+#DMY
+
+#dmy_long <- dmy %>% pivot_longer(cols = c(cut1, cut2, cut3, cut4, total), names_to = "cut", values_to = "dmy")
+dmytot_aov <- aov(total ~ year*use_year, data = dmy)
+summary.aov(dmytot_aov)
+
+#radau kaip viskam is karto OOO KOKS GERAS!!!!!!!
+cols <- names(dmy)[3:ncol(dmy)]  # cia pradzia turi but kai baigias faktoriai ir prasideda pozymiai
+aov.model <- lapply(cols, FUN = function(x) 
+  aov(reformulate(termlabels = "year*use_year", 
+                  response = x), 
+      data = dmy))
+anova(aov.model[[5]]) #paima penkta pozymi
+final = anova(aov.model[[5]])[,c(1,3,5)] # paima penkta pozymi
+final
+rnames = rownames(final)
+rnames
+colnames(final) = c("DF", "MS", "P-value")
+colnames(final)[2] = cols[5] # cols[5] CIA 1 REISKIA 5-o pozymio pavadinima
+final
+final = as.data.frame(final)
+final
+# Assign astericks according to p values
+final$sign[final$`P-value` < 0.05] <- "*" 
+final$sign[final$`P-value` < 0.01] <- "**"
+final$sign[final$`P-value` > 0.05] <- "ns"
+# Merge MS and significance column together
+final[[2]] = paste(final[[2]], ifelse(is.na(final[[4]]), "", final[[4]]))
+final
+
+final = final[-c(3,4)]
+final
+
+anova = writexl::write_xlsx(final, path = paste(cols[5], '-ANOVA.xlsx')) # cia irgi svarbu cols[5]
+# reikia viska pakartoti su visais pozymiais
+# Kodo neperkopinsiu, tiesiog keisiu kur reik
+
+# Print final ANOVA object
+file.list <- list.files(pattern='*-ANOVA.xlsx')
+
+df.list <- lapply(X = file.list, FUN = read_excel)
+df.list
+# Combined ANOVA table for all variables
+aov.table = rlist::list.cbind(df.list)
+
+# Remove duplicate columns for DF
+dup.cols = which(duplicated(names(aov.table)))
+aov.table = aov.table[,-dup.cols]
+aov.table
+# Names for sources of variation in ANOVA
+rownames(aov.table) = rnames
+aov.table
+
+# Nu fantastika. Butu dar geriau jei suprasciau koda
+# Isisaugau
+write.csv(aov.table, file = "04_reports/DMY_ANOVA.csv")
+
+

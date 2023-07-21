@@ -222,3 +222,65 @@ aov.table
 write.csv(aov.table, file = "04_reports/DMY_ANOVA.csv")
 
 
+# Darau HSD tik total, kiekvieniems naudojimo metams atskirai
+dmy_1 <- dmy %>% select(year, use_year, total) %>% filter(use_year == "1" & total > 0)
+shapiro.test(dmy_1$total) # p-value = 0.002451 REIKIA transformuoti
+total1_normal <- bestNormalize::bestNormalize(dmy_1$total)
+shapiro.test(total1_normal$x.t) #  p-value = 0.108
+dmy_1$total_Norm <- total1_normal$x.t
+
+dmy1.anova <- aov(total_Norm~ year, data = dmy_1)
+anova(dmy1.anova)
+dmy1.HSD <- HSD.test(dmy1.anova, "year", console = T)
+
+
+dmy1.HSD$groups
+# Step 1: Extract the "groups" element from the dmy1.HSD list
+groups_data <- dmy1.HSD$groups
+# Step 2: Create a new data frame with "groups" and add a new column for years
+df1 <- data.frame(year = rownames(groups_data), groups_data$groups, stringsAsFactors = FALSE)
+# Remove the row names
+rownames(df1) <- NULL
+# susortinti pagal metus didejancia tvarka
+df1 <- df1 %>% arrange(year)
+
+# OK dabar ta pat su 2 naudojimo metais
+
+dmy_1 <- dmy %>% select(year, use_year, total) %>% filter(use_year == "2" & total > 0)
+shapiro.test(dmy_1$total) # p-value = 0.9643 
+
+dmy1.anova <- aov(total~ year, data = dmy_1)
+anova(dmy1.anova)
+dmy1.HSD <- HSD.test(dmy1.anova, "year", console = T)
+
+
+dmy1.HSD$groups
+groups_data <- dmy1.HSD$groups
+df2 <- data.frame(year = rownames(groups_data), groups_data$groups, stringsAsFactors = FALSE)
+rownames(df2) <- NULL
+df2 <- df2 %>% arrange(year)
+
+totalDMY_HSD <- cbind(df1, df2)
+
+names_df1 <- c("year1", "groups1")
+names_df2 <- c("year2", "groups2")
+colnames(totalDMY_HSD) <- c(names_df1, names_df2) # Pakeiciau vardus nes dubliavosi
+
+write.csv(totalDMY_HSD, file = "04_reports/HSDgroupsDMY.csv")
+
+
+
+# ####
+
+# nORIU PAZIURET kiek % 2ais naudojimo metais maziau derliaus
+df <- dmy_stats %>% select(year, use_year, variable, mean) %>%
+  filter(variable == "total")
+df <- df %>% pivot_wider(names_from = use_year, values_from = mean) %>%
+  filter(year != c("2015", "2016"))
+df$variable <- NULL
+colnames(df) <- c("year", "tot1", "tot2")
+df$skirtumas <- df$tot1 - df$tot2
+df$proc_skirtumas <- round(df$skirtumas/df$tot1*100)
+
+sheet_name <- list('derlius' = df)
+openxlsx::write.xlsx(sheet_name, file = "04_reports/Other_results.xlsx")

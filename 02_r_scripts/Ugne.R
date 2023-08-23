@@ -284,3 +284,25 @@ df$proc_skirtumas <- round(df$skirtumas/df$tot1*100)
 
 sheet_name <- list('derlius' = df)
 openxlsx::write.xlsx(sheet_name, file = "04_reports/Other_results.xlsx")
+
+# METEO DEKADINE ####
+meteo_dekad$year <- as.factor(meteo_dekad$year)
+meteo_dekad$month <- as.factor(meteo_dekad$month)
+meteo_dekad$decade <- as.factor(meteo_dekad$decade)
+meteo_dekad$`y-m-d` <- as.factor(meteo_dekad$`y-m-d`)
+
+ggplot() + geom_line(data = meteo_dekad, aes(x = 'y-m-d', y = precip), color="blue") +
+    facet_wrap(~year)
+meteo_dekad$m_d <- paste(meteo_dekad$month, meteo_dekad$decade)
+meteo_dekad$m_d <- as.factor(meteo_dekad$m_d)
+
+
+  
+meteo_dekad$`y-m-d` <- as.Date(meteo_dekad$`y-m-d`, "%Y-%m-%d")
+
+
+class(meteo_dekad$`y-m-d`)
+meteo_dekad <- meteo_dekad %>% rename(date = 'y-m-d')
+
+ggplot(meteo_dekad, aes(x = date, y = precip)) + geom_col() +
+  facet_wrap(~month)

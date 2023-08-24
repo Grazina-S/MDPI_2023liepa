@@ -286,23 +286,45 @@ sheet_name <- list('derlius' = df)
 openxlsx::write.xlsx(sheet_name, file = "04_reports/Other_results.xlsx")
 
 # METEO DEKADINE ####
-meteo_dekad$year <- as.factor(meteo_dekad$year)
-meteo_dekad$month <- as.factor(meteo_dekad$month)
-meteo_dekad$decade <- as.factor(meteo_dekad$decade)
-meteo_dekad$`y-m-d` <- as.factor(meteo_dekad$`y-m-d`)
+#meteo_dekad$year <- as.factor(meteo_dekad$year)
+#meteo_dekad$month <- as.factor(meteo_dekad$month)
+#meteo_dekad$decade <- as.factor(meteo_dekad$decade)
+#meteo_decad$date <- as.Date(meteo_decad$date, format = "%Y-%b-%d")
+#meteo_dekad$`y-m-d` <- as.factor(meteo_dekad$`y-m-d`)
 
-ggplot() + geom_line(data = meteo_dekad, aes(x = 'y-m-d', y = precip), color="blue") +
-    facet_wrap(~year)
-meteo_dekad$m_d <- paste(meteo_dekad$month, meteo_dekad$decade)
-meteo_dekad$m_d <- as.factor(meteo_dekad$m_d)
+meteo_decad$year <- as.factor(meteo_decad$year)
+meteo_decad$month <- as.factor(meteo_decad$month)
+meteo_decad$decade <- as.factor(meteo_decad$decade)
+meteo_decad$date <- as.Date(meteo_decad$date, format = "%Y-%b-%d")
+str(meteo_decad)
+
+ggplot(meteo_decad, aes(x = eile, y = precip), color = "blue") + geom_line()
 
 
-  
-meteo_dekad$`y-m-d` <- as.Date(meteo_dekad$`y-m-d`, "%Y-%m-%d")
+
+meteo_decad$eile2 <- substring(meteo_decad$eile, 2)  
+str(meteo_decad)
+meteo_decad$eile2 <- as.numeric(meteo_decad$eile2)
+str(meteo_decad)
+mazas <- meteo_decad %>% filter(year == c(2010, 2011))
+
+ggplot(meteo_decad, aes(x = eile2, y = precip)) + geom_col() +
+  facet_wrap(~year, scales = "free_x") +
+  scale_x_continuous(breaks = meteo_decad$eile2[seq(1, nrow(meteo_decad), by = 3)],
+                     labels = meteo_decad$date2[seq(1, nrow(meteo_decad), by = 3)])
+
+precip_fig <- ggplot(meteo_decad) + geom_col( aes(x = eile2, y = precip), fill = "skyblue", color = "black") + geom_line(aes(x = eile2, y = precip_longterm), color = "gray30", size = 1) +
+  facet_wrap(~year, scales = "free_x", ncol = 3, strip.position = "bottom") +
+  scale_x_continuous(breaks = meteo_decad$eile2[seq(1, nrow(meteo_decad), by = 3)],
+                     labels = meteo_decad$month[seq(1, nrow(meteo_decad), by = 3)]) +
+  theme_metan_minimal() + xlab("Date") + ylab("Precipitation, mm")
 
 
-class(meteo_dekad$`y-m-d`)
-meteo_dekad <- meteo_dekad %>% rename(date = 'y-m-d')
+#ggplot(meteo_decad) + geom_col( aes(x = eile2, y = precip), fill = "skyblue", color = "black") + geom_line(aes(x = eile2, y = precip_longterm), color = "gray30", size = 1) +
+#  facet_wrap(~year, scales = "free_x", ncol = 3, strip.position = "bottom") +
+#  scale_x_continuous(breaks = meteo_decad$eile2[seq(1, nrow(meteo_decad), by = 3)],
+#                     labels = meteo_decad$month[seq(1, nrow(meteo_decad), by = 3)]) +
+#  theme_metan_minimal() + xlab("Date") + ylab("Precipitation, mm")
 
-ggplot(meteo_dekad, aes(x = date, y = precip)) + geom_col() +
-  facet_wrap(~month)
+temperature$year <- as.factor(temperature$year)
+temperature$date <- as.Date(temperature$date, format = "%Y-%b-%d")

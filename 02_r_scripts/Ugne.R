@@ -328,3 +328,19 @@ precip_fig <- ggplot(meteo_decad) + geom_col( aes(x = eile2, y = precip), fill =
 
 temperature$year <- as.factor(temperature$year)
 temperature$date <- as.Date(temperature$date, format = "%Y-%b-%d")
+
+str(temperature)
+
+temperature$eile2 <- substring(temperature$eile, 2)  
+temperature$eile2 <- as.numeric(temperature$eile2)
+
+temper_fig <- ggplot(temperature, aes(x = eile2, y = temp, color = kind)) + geom_line() +
+  facet_wrap( ~year, scales = "free_x", ncol = 3, strip.position = "bottom") +
+  scale_x_continuous(breaks = temperature$eile2[seq(1, nrow(temperature), by = 3)],
+                     labels = temperature$month[seq(1, nrow(temperature), by = 3)]) +
+  theme_metan_minimal() + scale_color_manual(values = c("mean" = "blue", "long-term" = "gray30")) +
+  geom_hline(yintercept = 0,  color = 'black') +
+  xlab("Date") + ylab("Temperature, \u00b0C")
+
+
+ 

@@ -343,4 +343,12 @@ temper_fig <- ggplot(temperature, aes(x = eile2, y = temp, color = kind)) + geom
   xlab("Date") + ylab("Temperature, \u00b0C")
 
 
- 
+
+meteo_decad$snow[is.na(meteo_decad$snow)] <- 0
+
+snow_fig <- ggplot(meteo_decad, aes(x = eile2, y = snow)) + geom_col(fill = "gray50", color = "black") + 
+  facet_wrap(~year, scales = "free_x", ncol = 3, strip.position = "bottom") +
+  scale_x_continuous(breaks = meteo_decad$eile2[seq(1, nrow(meteo_decad), by = 3)],
+                     labels = meteo_decad$month[seq(1, nrow(meteo_decad), by = 3)]) +
+  theme_metan_minimal() + xlab("Date") + ylab("Snow cover, mm")
+snow_fig

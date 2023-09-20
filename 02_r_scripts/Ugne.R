@@ -268,6 +268,39 @@ colnames(totalDMY_HSD) <- c(names_df1, names_df2) # Pakeiciau vardus nes dubliav
 
 write.csv(totalDMY_HSD, file = "04_reports/HSDgroupsDMY.csv")
 
+# HSD PIRMAI PJUCIAI
+
+dmy_1year <- dmy %>%  filter(use_year == "1" & total > 0)
+shapiro.test(dmy_1year$cut1)
+normal1stcut <- bestNormalize::bestNormalize(dmy_1year$cut1)
+dmy_1year$cut1NORM <- normal1stcut$x.t
+dmy1_norm <- aov(cut1NORM ~ year, data = dmy_1year)
+HSD.test(dmy1_norm, "year", console = TRUE) # nu biski skiriasi rezultatas, maziau reiksmingu skirtumu
+hist(dmy_1year$cut1)  # nera baisi histograma. Gal tiek tos
+dmy1_1aove <- aov(cut1 ~ year, data = dmy_1year)
+summary.aov(dmy1_1aove)
+dmy1cut_hsd <- HSD.test(dmy1_1aove, "year", console = TRUE)
+capture.output(dmy1cut_hsd, file = "04_reports/HSD_1styear_1stcut.csv")
+
+# HSD ANTRAI PJUCIAI
+
+hist(dmy_1year$cut2) #normaliai
+dmy1_2aov <- aov(cut2 ~ year, data = dmy_1year)
+summary.aov(dmy1_2aov)
+dmy1_2cut.HSD <- HSD.test(dmy1_2aov, "year", console = TRUE)
+capture.output(dmy1_2cut.HSD, file = "04_reports/HSD_1styear_2ndcut.csv")
+
+# HSD TRECIAI PJUCIAI
+hist(dmy_1year$cut3) #nenormaliai visiskai. nu bet tiek to
+dmy1_3aov <- aov(cut3 ~ year, data = dmy_1year)
+summary.aov(dmy1_3aov)
+dmy1_3cut.HSD <- HSD.test(dmy1_3aov, "year", console = TRUE)
+capture.output(dmy1_3cut.HSD, file = "04_reports/HSD_1styear_3ndcut.csv")
+
+#
+
+
+
 
 
 # ####

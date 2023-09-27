@@ -10,6 +10,7 @@ install.packages("tidyverse")
 install.packages("rstatix")
 install.packages("flextable")
 install.packages("rlist")
+install.packages("lubridate")
 
 # laibrariai #########################
 library(readxl)
@@ -23,6 +24,7 @@ library(patchwork)
 library(colorspace)
 library(flextable)
 library(rlist)
+library(lubridate)
 
 # Nuskaitymas is excel #########################
 dmy <- read_excel("00_raw_data\\Ugnė_nuo 2009.xlsx", sheet = "DMY")
@@ -385,3 +387,15 @@ snow_fig <- ggplot(meteo_decad, aes(x = eile2, y = snow)) + geom_col(fill = "gra
                      labels = meteo_decad$month[seq(1, nrow(meteo_decad), by = 3)]) +
   theme_metan_minimal() + xlab("Date") + ylab("Snow cover, mm")
 snow_fig
+
+
+# ---------------------------------------- WEATHER-------------------
+#duomenu failas weather.txt
+
+weather$Date <- as.Date(weather$Date, format = "%m/%d/%Y")
+str(weather)
+weather$T_max <- as.numeric(weather$T_max)
+sum(is.na(weather$T_max))
+which(is.na(weather$T_max))
+weather[2950:5] <- -5.1
+

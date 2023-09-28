@@ -11,6 +11,9 @@ install.packages("rstatix")
 install.packages("flextable")
 install.packages("rlist")
 install.packages("lubridate")
+install.packages("FactoMineR")
+install.packages(c("Factoshiny","missMDA","FactoInvestigate"))
+install.packages("sjstats") # ANOVA effect size apskaiciuoti
 
 # laibrariai #########################
 library(readxl)
@@ -25,6 +28,11 @@ library(colorspace)
 library(flextable)
 library(rlist)
 library(lubridate)
+library(FactoMineR)
+library(Factoshiny)
+library(missMDA)
+library(FactoInvestigate)
+library(sjstats)
 
 # Nuskaitymas is excel #########################
 dmy <- read_excel("00_raw_data\\Ugnė_nuo 2009.xlsx", sheet = "DMY")
@@ -163,6 +171,9 @@ dmy_wrap <- dmy_wrap + theme_bw() + scale_y_continuous(limits = c(0, 14500), bre
 tiff(filename = "03_plots/DMY_su_wrap.tif", width = 21, height = 22, units =  "cm", res = 600)
 dmy_wrap
 dev.off()
+
+#jeigu naudojam TIK 1 naudojimo metus, reikia perdaryt ____________________________
+dmy_fig_AA <- dmy_fig_A %>% filter(year != "2015")
 
 # ANOVA ir HSD ####
 
@@ -397,5 +408,108 @@ str(weather)
 weather$T_max <- as.numeric(weather$T_max)
 sum(is.na(weather$T_max))
 which(is.na(weather$T_max))
-weather[2950:5] <- -5.1
+weather[2950,5] <- -5.1
+weather$T_avg <- as.numeric(weather$T_avg)
+sum(is.na(weather$T_avg))
+which(is.na(weather$T_avg))
+weather[4109, 6] <- 18.0
+weather$precipitation <- as.numeric(weather$precipitation)
+which(is.na(weather$precipitation))
+sum(is.na(weather$precipitation))
+weather[2405, 7] <- 2.2
+weather$precipitation[is.na(weather$precipitation)] <- 0
+weather$year <- year(weather$Date)
+weather$year <- as.factor(weather$year)
+weather$period <- as.factor(weather$period)
+weather$period_cuts <- as.factor(weather$period_cuts)
+head(weather)
+weather$T_i <- (weather$T_max + weather$T_min)/2 # nesugalvojau kaip protingiau pavadinti
+weather$DD <- ifelse(weather$T_i > 5, weather$T_i - 5, 5 - weather$T_i)
+# cia esme kad jei auskciau nei 5C, tai bus GDD (Tmax+Tmin)/2 - Tbase
+# o CDD yra Tbase - (Tmax+Tmin)/2
+# pagal https://www.energy-a.eu/cooling-degree-days-and-heating-degree-days/
 
+# kai kur ruduo yra HF vietoj FH
+
+weather$period <- ifelse(weather$period == "HF", "FH", weather$period)
+weather$period_cuts <- ifelse(weather$period_cuts == "HF", "FH", weather$period_cuts)
+summary(weather)
+# WATAFAK cia buvo?? vietoj periodu dabar stovi skaiciukai????? nu bliaaaa
+rm(wtf, fall_harden, weather)
+# matyt taip atsitiko del to kad tie stulpeliai buvo as.factor.
+# Isikeliau duomenis is naujo ir pritaikiau tuos ifelse PRIES nurodant
+# laikyti faktorium, ir viskas OK
+# reik issisaugot nes pasirodo daug klaidu buvo
+write.csv(weather, file = "01_tidy_data/weather.csv")
+head(weather, 3)
+# Assuming your dataframe is called weather
+# Load the dplyr package (if not already loaded)
+
+# Create a custom grouping variable based on the sequential occurrence of each period type
+weather <- weather %>%
+  mutate(
+    block_id = paste(period, cumsum(period != lag(period, default = first(period))), sep = "")
+  )
+
+# Group by the custom grouping variable and calculate the duration of each period
+result <- weather %>%
+  group_by(block_id) %>%
+  summarize(
+    start_date = min(Date),
+    end_date = max(Date),
+    duration = as.numeric(difftime(max(Date), min(Date), units = "days"))
+  )
+
+# Print the result
+print(result)
+# nesigavo. Tiesiog rankom surasiau metus ("year") taip, kad FH butu vienais metais, o WP kitais
+# 2020 ziema asiuminau nuo sausio 1 nes NEBUVO -10
+rm(result, weather)
+# isikeliu is naujo, vel nurodau kas yra kas
+weather$Date <- as.Date(weather$Date, format = "%m/%d/%Y")
+weather$year <- as.factor(weather$year)
+weather$period <- as.factor(weather$period)
+weather$period_cuts <- as.factor(weather$period_cuts)
+summary(weather)
+duration <- weather %>% group_by(year, period_cuts) %>% summarize(
+  start_date = min(Date),
+  end_date = max(Date),
+  duration = as.numeric(difftime(max(Date), min(Date), units = "days")),
+  T_mean = mean(T_avg), tot_prec = sum(precipitation), GDD = sum(DD))
+duration$T_mean <- round(duration$T_mean, 1)
+
+#OK dabar be cuts
+periods_forPCA <-  weather %>% group_by(year, period) %>% summarize(
+  start_date = min(Date),
+  end_date = max(Date),
+  duration = as.numeric(difftime(max(Date), min(Date), units = "days")),
+  T_mean = mean(T_avg), tot_prec = sum(precipitation))
+duration$T_mean <- round(duration$T_mean, 1)
+view(periods_forPCA)
+head(periods_forPCA, 2)
+
+periods_forPCA <- periods_forPCA %>%
+  pivot_wider(
+    names_from = period,
+    values_from = c(duration, T_mean, tot_prec),
+    names_sep = "_"
+  )
+view(periods_forPCA)
+write.csv(periods_forPCA, file = "01_tidy_data/periods_forPCA.csv")
+# biski patvarkyt rankom reikia. Ir idet derliu
+yield <- dmy_1 %>% group_by(year) %>% summarize(mean(total))
+# biski ne taip padare
+periods_forPCA$yield <- NULL
+periods_forPCA$yield <- yield$`mean(total)`
+periods_forPCA$year <- as.factor(periods_forPCA$year)
+# Assuming your tibble is called periods_forPCA
+# Convert the tibble to a data frame
+periods_forPCA <- as.data.frame(periods_forPCA)
+
+# Set the first column as the row names (index)
+row.names(periods_forPCA) <- periods_forPCA[, 1]
+
+# Remove the first column
+periods_forPCA <- periods_forPCA[, -1]
+res.pca = PCA(periods_forPCA[,1:9], scale.unit = TRUE, graph = T)
+PCAshiny(res.pca)

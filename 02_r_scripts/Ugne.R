@@ -174,6 +174,16 @@ dev.off()
 
 #jeigu naudojam TIK 1 naudojimo metus, reikia perdaryt ____________________________
 dmy_fig_AA <- dmy_fig_A %>% filter(year != "2015")
+Pav_DMY_AA <- ggplot(dmy_fig_AA, aes(x = year, y = dmy, fill = cut)) +
+  geom_col(position = position_stack(reverse = TRUE), colour = "black") + 
+  scale_fill_manual(values = spalvos) +
+  #guides(fill = guide_legend(reverse = T))  +
+  xlab('Year') + ylab(bquote("DMY kg ha"^"-1")) + theme_metan_minimal() + theme(legend.position = "top", legend.justification = "left")
+Pav_DMY_AA
+# Nu tarkim OK atrodo
+tiff(filename = "03_plots/DMY_1styear.tif", width = 15, height = 15, units =  "cm", res = 600)
+Pav_DMY_AA
+dev.off()
 
 # ANOVA ir HSD ####
 
@@ -399,6 +409,17 @@ snow_fig <- ggplot(meteo_decad, aes(x = eile2, y = snow)) + geom_col(fill = "gra
   theme_metan_minimal() + xlab("Date") + ylab("Snow cover, mm")
 snow_fig
 
+tiff(filename = "03_plots/temperature.tif", width = 19, height = 29, units =  "cm", res = 600)
+temper_fig + theme(legend.position = "top", legend.justification = "left", axis.text.x = element_text(angle = 45, hjust = 1))
+dev.off()
+
+tiff(filename = "03_plots/precipitation.tif", width = 19, height = 28, units =  "cm", res = 600)
+precip_fig + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+dev.off()
+
+tiff(filename = "03_plots/snow.tif", width = 19, height = 28, units =  "cm", res = 600)
+snow_fig + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+dev.off()
 
 # ---------------------------------------- WEATHER-------------------
 #duomenu failas weather.txt

@@ -33,6 +33,7 @@ library(Factoshiny)
 library(missMDA)
 library(FactoInvestigate)
 library(sjstats)
+library(car)
 
 # Nuskaitymas is excel #########################
 dmy <- read_excel("00_raw_data\\Ugnė_nuo 2009.xlsx", sheet = "DMY")
@@ -305,6 +306,7 @@ summary.aov(dmy1_1aove)
 dmy1cut_hsd <- HSD.test(dmy1_1aove, "year", console = TRUE)
 capture.output(dmy1cut_hsd, file = "04_reports/HSD_1styear_1stcut.csv")
 
+
 # HSD ANTRAI PJUCIAI
 
 hist(dmy_1year$cut2) #normaliai
@@ -320,6 +322,9 @@ summary.aov(dmy1_3aov)
 dmy1_3cut.HSD <- HSD.test(dmy1_3aov, "year", console = TRUE)
 capture.output(dmy1_3cut.HSD, file = "04_reports/HSD_1styear_3ndcut.csv")
 
+dmy1_4cut <- aov(cut4 ~ year, data = dmy_1year)
+summary.aov(dmy1_4cut)
+dmy1_4cut.HSD <- HSD.test(dmy1_4cut, "year", console = TRUE)
 #
 
 
@@ -517,6 +522,7 @@ periods_forPCA <- periods_forPCA %>%
   )
 view(periods_forPCA)
 write.csv(periods_forPCA, file = "01_tidy_data/periods_forPCA.csv")
+write.csv(duration, file = "01_tidy_data/weather_indices.csv")
 # biski patvarkyt rankom reikia. Ir idet derliu
 yield <- dmy_1 %>% group_by(year) %>% summarize(mean(total))
 # biski ne taip padare
@@ -532,5 +538,94 @@ row.names(periods_forPCA) <- periods_forPCA[, 1]
 
 # Remove the first column
 periods_forPCA <- periods_forPCA[, -1]
-res.pca = PCA(periods_forPCA[,1:9], scale.unit = TRUE, graph = T)
+res.pca = PCA(periods_forPCA, scale.unit = TRUE, graph = T)
 PCAshiny(res.pca)
+
+#------------------------------------------------------- CUT1 -----------------------------------
+# CUT1.csv su klaidingais GDD, pataisiau bet neperseivinau
+cut1Anova <- aov(yield ~  prec + GDD + FH_length + FHtemp + Fhprec + WP_legth + Wptemp + WPprec, data = CUT1)
+summary.aov(cut1Anova)
+# supylus viska viska niekas nesigauna, tik Wptemp 0.08, kitu daug didesni
+#    TIK RUDENS FAKTORIAI
+cut1Anova <- aov(yield ~ FH_length* FHtemp*Fhprec, data = CUT1 )
+summary.aov(cut1Anova)
+# Visi P beveik 1
+# TIK ZIEMOS FAKTORIAI
+cut1Anova <- aov(yield ~  Wptemp*cold_days, data = CUT1 )
+summary.aov(cut1Anova)
+# irgi nieko
+
+# TIK PAVASARIS
+cut1Anova <- aov(yield ~ prec* GDD, data = CUT1 )
+summary.aov(cut1Anova)
+# irgi nieko
+
+#   TIK TEMPERATUROS
+cut1Anova <- aov(yield ~ GDD * Wptemp*cold_days, data = CUT1 )
+summary.aov(cut1Anova)
+# nieko
+
+# ZIEMOS temperatura + PAVASARIO KRITULIAI IR TEMPERATURA
+cut1Anova <- aov(yield ~ GDD * Wptemp * prec, data = CUT1 )
+summary.aov(cut1Anova)
+# sitaip padarius reiksminga Ziemos vidutine temp ir pavasario krituliai
+# ZIEMOS temperatura + PAVASARIO KRITULIAI
+cut1Anova <- aov(yield ~  Wptemp + prec, data = CUT1 )
+summary.aov(cut1Anova)
+# sitaip padarius irgi reiksminga, bet tik jei neitraukiu saveikos
+
+# Pabandau regresine
+
+model <- lm(yield ~ Wptemp + prec, data = CUT1)
+summary(model)
+
+avPlots(model)
+# zodziu, tik sita kombinacija veikia ir daugiau jokia kita
+
+#------------------------------CUT2 ----------------------------
+CUT2 <- duration %>% filter(period_cuts == "cut2")
+CUT2$yield <- cut2yield
+
+cut2anova <- aov(yield ~ GDD+tot_prec+duration+T_mean, data = CUT2)
+summary(cut2anova)
+# nu nieko sau blia niekas neturejo jokios reiksmes
+cut2anova <- aov(yield ~ duration, data = CUT2)
+summary(cut2anova)
+# T_mean turi. Bet tai kai lietus neturi, mistika
+# O jei pridet pavasarini lietu
+CUT2$cut1prec <- CUT1$prec
+CUT2$sum_prec <- CUT2$tot_prec + CUT2$cut1prec
+
+cut2anova <- aov(yield ~ tot_prec*cut1prec, data = CUT2)
+summary(cut2anova)
+# Nu niekaip neislauziu kad lietus but reiksmingas
+model <- lm(yield ~ T_mean, data = CUT2)
+summary(model)
+CUT2$mean_prec <- CUT2$tot_prec/CUT2$duration
+cut2anova <- aov(yield ~ mean_prec*T_mean, data = CUT2)
+summary(cut2anova)
+# nu ne ir vidurkis lietaus nepaeina
+
+#--------------------------- CUT3---------------
+CUT3 <- duration %>% filter(period_cuts == "cut3")
+view(CUT3)
+cut3dmy <- dmy_fig_A %>% filter(cut == "cut3", year != "2015")
+CUT3$yield <- cut3dmy$dmy
+rm(cut3dmy)
+
+cut3anova <- aov(yield ~ GDD+tot_prec+duration+T_mean, data = CUT3)
+summary(cut3anova)
+# fakin niekas nereiksminga. paziuriu po kiekviena atskirai
+cut3anova <- aov(yield ~ T_mean, data = CUT3)
+summary(cut3anova)
+plot(CUT3$T_mean, CUT3$yield)
+model <- lm(yield ~  T_mean, data = CUT3)
+summary(model)
+
+cut2_3 <- rbind(CUT2, CUT3)
+fig2 <- ggplot(cut2_3, aes(x = yield, y = T_mean,   color = period_cuts) ) +
+  geom_point(size = 3) + geom_smooth(method = "lm") + scale_color_manual(values = c("#26A63A", "blue")) +
+  theme_metan_minimal() + xlab(bquote("DMY kg ha"^"-1")) + ylab("Average temperature, \u00b0C")
+fig2
+# Nu visai nieko
+

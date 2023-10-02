@@ -623,9 +623,292 @@ model <- lm(yield ~  T_mean, data = CUT3)
 summary(model)
 
 cut2_3 <- rbind(CUT2, CUT3)
-fig2 <- ggplot(cut2_3, aes(x = yield, y = T_mean,   color = period_cuts) ) +
-  geom_point(size = 3) + geom_smooth(method = "lm") + scale_color_manual(values = c("#26A63A", "blue")) +
+fig2 <- ggplot(cut2_3, aes(x = yield, y = T_mean,   fill = period_cuts) ) +
+  geom_point(size = 3, shape = 21) + geom_smooth(method = "lm", se=FALSE) + scale_fill_manual(values = c("#26A63A", "blue")) +
   theme_metan_minimal() + xlab(bquote("DMY kg ha"^"-1")) + ylab("Average temperature, \u00b0C")
-fig2
+fig2 <- fig2 + theme(legend.position = c(0, 0), legend.justification = c(0, 0)) 
+  
 # Nu visai nieko
+tiff(filename = "03_plots/cut_Tavg.tif", width = 10, height = 10, units =  "cm", res = 600)
+fig2
+dev.off()
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Nu OK, su derlium susitvarkiau daugmaz. Dabar kiti pozymiai
+###### ----------------------BALAIS VERTINTI POZYMIAI -----------------------------------------------------------------------------
+scores <- scores %>% filter(use_year == 1, year != 2015)
+scores$year <- as.factor(scores$year)
+
+wr_anova <- aov(wr_score ~ year, data = scores)
+summary.aov(wr_anova)
+wr_HSD <- HSD.test(wr_anova, "year", console = T)
+
+spring_anova <- aov(spring_g ~ year, data = scores)
+summary.aov(spring_anova)
+springHSD <- HSD.test(spring_anova, "year", console = TRUE) # skiriasi tik 2014
+
+summer_anova <- aov(summer_g ~ year, data = scores)
+summer_HSD <- HSD.test(summer_anova, "year", console = TRUE)
+
+fh_wp <- CUT1[, 6:12]
+view(fh_wp)
+fh_wp$year <- c(2009, 2010, 2011, 2012, 2013, 2014, 2016, 2017, 2018, 2019,
+                2020, 2021, 2022)
+mean_scores <- scores %>% group_by(year) %>% summarise(WR_score = mean(wr_score),
+                                                       SPRING_G = mean(spring_g),
+                                                       SUMMER_G = mean(summer_g),
+                                                       SPOT = mean(spot),
+                                                       RUST = mean(rust))
+view(mean_scores)
+fh_wp$wr_score <- round(mean_scores$WR_score, 1)
+fh_wp$spring_g <- round(mean_scores$SPRING_G, 1)
+# OK reik bandyt kazkokiu sasaju ieskot
+model <- lm(wr_score ~  Wptemp + FHtemp , data = fh_wp)
+summary(model)
+#FH_length + FHtemp + Fhprec + WP_legth + Wptemp +WPprec + cold_days
+
+# NIFIGA nesigavo
+model <- lm(spring_g ~ FH_length + FHtemp + Fhprec + WP_legth + Wptemp +WPprec + cold_days,
+            data = fh_wp)
+summary(model)
+cor.test(fh_wp$wr_score, fh_wp$spring_g, method = 'spearman')
+# OK koreliacija patikima 0.59. Kas yra labai logiska. 
+#Ir kas reiskia kad su regresija be abejo nieko nesigaus
+plot(fh_wp$wr_score, fh_wp$spring_g)
+
+# Dabar itaka pirmai pjuciai
+
+scores$cut1 <- dmy_1year$cut1
+
+dmy_scoresaov <- aov(cut1 ~ wr_score * spring_g, data = scores)
+summary.aov(dmy_scoresaov)
+model <- lm(cut1 ~ wr_score*spring_g, data = scores)
+summary((model))
+CUT1$wr_score <- fh_wp$wr_score
+
+model2 <- lm(yield ~  Wptemp*wr_score , data = CUT1)
+summary((model2))
+# bandziau izlauzt kazkokias sasajas
+#Jo OK Multiple R-squared:  0.5439 bet p-value: 0.05979
+# zodziu, suprantu kad visiskai nesuprantu. Kodel sudejus reiksmingus
+# faktorius nesigauna didelis modelio patikimumas? thefuck
+
+
+weather_filtered <- weather %>% filter(period == "GP", T_i >5.4)
+GP_weather <- weather_filtered %>% group_by(year) %>% summarise(Tavg = mean(T_avg),
+                                                                prec_sum = sum(precipitation),
+                                                                GDD = sum(DD))
+GP_duration <- duration %>% filter(period_cuts %in% c("cut1", "cut2", "cut3", "cut4")) %>%
+  group_by(year) %>% summarize(length = sum(duration))
+GP_weather$length <- GP_duration$length
+GP_weather$Tavg <- round(GP_weather$Tavg, 1)
+GP_weather$prec_sum <- round(GP_weather$prec_sum)
+GP_weather$GDD <- round(GP_weather$GDD)
+view(GP_weather)
+ugne <- genotypic_stability(data = ugne_stab, trait = "trait", genotype = "gen", environment = "env", unit.correct = FALSE)
+# 0 gavos
+ugne2 <- stability_variance(data = ugne_stab, trait = "trait", genotype = "gen", environment = "env", unit.correct = FALSE)
+# turbut reik su pakartojimais
+rm(ugne_stab)
+ugne_stab <- dmy_1
+ugne_stab$year <- as.factor(ugne_stab$year)
+ugne_stab$use_year <- as.character(ugne_stab$use_year)
+
+levels(ugne_stab$year)
+# THEFUCK gaunu tipo yra 2015, nors akim ziurint jo nera!!!
+# View the current levels of the 'year' factor column
+current_levels <- levels(ugne_stab$year)
+
+# Check if "2015" is in the current levels and remove it if it is present
+if ("2015" %in% current_levels) {
+  current_levels <- current_levels[current_levels != "2015"]
+  
+  # Update the factor levels
+  ugne_stab$year <- factor(ugne_stab$year, levels = current_levels)
+}
+
+# OK dabar vel bandau stabiluma skaiciuot
+
+ugne <- genotypic_stability(data = ugne_stab,
+                            trait = "total",
+                            genotype = "use_year",
+                            environment = "year",
+                            unit.correct = FALSE)
+ugne2 <- stability_variance(data = ugne_stab,
+                            trait = "total",
+                            genotype = "use_year",
+                            environment = "year",
+                            unit.correct = FALSE)
+
+summary.table.ugne <- table_stability(data = ugne_stab,
+                                      trait = "total",
+                                      genotype = "use_year",
+                                      environment = "year",
+                                      unit.correct = FALSE,
+                                      lambda = median(ugne_stab$total))
+view(summary.table.ugne)
+ugne
+view(ugne2)
+data(Data)
+genotypic.stability <- genotypic_stability(
+  data = Data,
+  trait = "Yield",
+  genotype = "Genotype",
+  environment = "Environment",
+  unit.correct = FALSE)
+view(genotypic.stability)
+
+# Nu zodziu, paskaiciavo bet kas is to kai nera su kuo palygint
+
+view(GP_weather)
+write.csv(GP_weather, file = "01_tidy_data/GP_weather.csv", row.names = FALSE)
+rm(GP_weather)
+GP_weather$year <- as.factor(GP_weather$year)
+# blyn turejau istrinti ir is naujo ikelti kad dingtu tas nematomas 2015
+
+scores$total <- dmy_1year$total
+cor.test(scores$summer_g, scores$total)
+anovv <- aov(total ~ summer_g*spring_g, data = scores)
+summary.aov(anovv)
+
+
+GP_weather$re_growth <- mean_scores$SUMMER_G
+anovv <- aov(total ~ summer_g*spring_g, data = scores)
+summary.aov(anovv)
+# jezusmarija kur derliu suma ...
+derlius <- dmy_1year %>% group_by(year) %>% summarize(dmy_total = mean(total))
+GP_weather$dmy <- derlius$dmy_total
+
+
+
+plot(GP_weather$dmy, GP_weather$prec_sum)
+plot(GP_weather$dmy, GP_weather$GDD)
+plot(GP_weather$dmy, GP_weather$re_growth)
+anovv <- aov(dmy ~ re_growth*prec_sum*GDD, data = GP_weather)
+summary.aov(anovv)
+anovv <- aov(re_growth ~ Tavg, data = GP_weather)
+summary.aov(anovv)
+# NIEKO
+
+# ------------------------ LIGOS -----------------------
+
+ligos_anova <- aov(spot ~ year, data = scores)
+summary.aov(ligos_anova)
+ligos_HSD <- HSD.test(ligos_anova, 'year', console = TRUE)
+ligos_anova <- aov(rust ~ year, data = scores)
+summary.aov(ligos_anova)
+ligos_HSD <- HSD.test(ligos_anova, 'year', console = TRUE)
+# NU OK. Ligos skiriasi tarp metu
+GP_weather$rust <- mean_scores$RUST
+GP_weather$spot <- mean_scores$SPOT  
+view(GP_weather)
+
+ligos_oras <- aov(rust ~ prec_sum+GDD+Tavg+length, data = GP_weather)
+summary.aov(ligos_oras)
+# NIEKO
+ligos_oras <- aov(spot ~ prec_sum+GDD+Tavg+length, data = GP_weather)
+summary.aov(ligos_oras)
+# NIEKO
+ligos_oras <- aov(spot ~ prec_sum*Tavg, data = GP_weather)
+summary.aov(ligos_oras)
+# NU i NAFIK. Niekas su niekuo nesigauna
+http://127.0.0.1:38561/graphics/plot_zoom_png?width=1920&height=1129
+# Viskas. Padarau paveiksla su A)overwinter+Spring_growth+re_growth
+# B) rust + spot. Ir viskas. Nes niekur niekas nesigauna, gaidys totalus
+spalvos_scores <- c( "orange",  "springgreen", "lightblue")
+figA_scores$year <- as.factor(figA_scores$year)
+Pav_scores_A <- ggplot(figA_scores, aes(x = year, y = score, fill = a_part)) +
+  geom_col(position = position_dodge2(reverse = TRUE), colour = "black", width = 0.5) + 
+  scale_fill_manual(values = spalvos_scores) +
+  xlab('Year') + ylab("Score") + theme_metan_minimal() +
+  theme(legend.position = "top", legend.justification = "right") +
+  guides(fill = guide_legend(reverse = T)) + 
+  scale_y_continuous(limits = c(0, 9), breaks = seq(0, 9, by = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+                                   legend.key.size = unit(0.3, 'cm'))
+  
+Pav_scores_A
+# Nu pagaliau gavos kaip noriu
+figB_scores$year <- as.factor(figB_scores$year)
+Pav_scores_B <- ggplot(figB_scores, aes(x = year, y = score, fill = disease)) +
+  geom_col(position = "dodge", colour = "black", width = 0.5) + 
+  scale_fill_manual(values = spalvos_scores) +
+  xlab('Year') + ylab("Score") + theme_metan_minimal() +
+  theme(legend.position = "top", legend.justification = "right") +
+  #guides(fill = guide_legend(reverse = T)) + 
+  scale_y_continuous(limits = c(0, 9), breaks = seq(0, 9, by = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.key.size = unit(0.3, 'cm'))
+
+Pav_scores_B
+
+fig_scores <- Pav_scores_A + Pav_scores_B
+tiff(filename = "03_plots/scores.tif", width = 20, height = 10, units =  "cm", res = 600)
+fig_scores
+dev.off()
+
+# ----------------- KOKYBE -------------------------------------------------
+
+quality$year <- as.factor(quality$year)
+
+kokybe_aov <- aov(WSC ~ year, data = quality)
+summary.aov(kokybe_aov)
+kokybe_HSD <- HSD.test(kokybe_aov, "year", console = T)
+
+
+# PAVEIKSLAS
+quality_mean <- quality %>% group_by(year) %>% summarize(mean_cp = mean(CP),
+                                                         mean_cf = mean(CF),
+                                                         mean_dmd = mean(DMD),
+                                                         mean_wsc = mean(WSC))
+view(quality_mean)
+quality_mean$mean_cp <- round(quality_mean$mean_cp, 1)
+quality_mean$mean_cf <- round(quality_mean$mean_cf, 1)
+quality_mean$mean_dmd <- round(quality_mean$mean_dmd, 1)
+quality_mean$mean_wsc <- round(quality_mean$mean_wsc, 1)
+
+fig_cp <- ggplot(quality_mean, aes(x = year, y = mean_cp)) + 
+  geom_col(color = "black", fill = "springgreen", width = 0.8) +
+  xlab("Year") + ylab("Crude protein, %") +
+  theme_metan_minimal()
+
+fig_cf <- ggplot(quality_mean, aes(x = year, y = mean_cf)) + 
+  geom_col(color = "black", fill = "lightblue", width = 0.8) +
+  xlab("Year") + ylab("Crude fiber, %") +
+  theme_metan_minimal()
+fig_cf
+
+fig_dmd <- ggplot(quality_mean, aes(x = year, y = mean_dmd)) + 
+  geom_col(color = "black", fill = "springgreen3", width = 0.8) +
+  xlab("Year") + ylab("Dry matter digestibility, %") +
+  theme_metan_minimal()
+fig_dmd
+
+fig_wsc <- ggplot(quality_mean, aes(x = year, y = mean_wsc)) + 
+  geom_col(color = "black", fill = "lightblue3", width = 0.8) +
+  xlab("Year") + ylab("Water soluble carbohydrates, %") +
+  theme_metan_minimal()
+fig_wsc
+
+quality_fig <- (fig_cp | fig_cf) / (fig_dmd | fig_wsc)
+quality_fig
+
+tiff(filename = "03_plots/quality.tif", width = 15, height = 15, units =  "cm", res = 600)
+quality_fig
+dev.off()
+
+
+# CV formule
+calculate_cv <- function(data) {
+  cv <- sd(data) / mean(data) * 100
+  return(cv)
+}
+calculate_cv(GP_weather$dmy)
+# 26.9
+
+calculate_cv(CUT1$yield)
+# 58.5
+calculate_cv(CUT2$yield)
+# 18.7
+calculate_cv(CUT3$yield)
+#50.4
 

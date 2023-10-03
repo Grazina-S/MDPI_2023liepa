@@ -817,7 +817,7 @@ http://127.0.0.1:38561/graphics/plot_zoom_png?width=1920&height=1129
 spalvos_scores <- c( "orange",  "springgreen", "lightblue")
 figA_scores$year <- as.factor(figA_scores$year)
 Pav_scores_A <- ggplot(figA_scores, aes(x = year, y = score, fill = a_part)) +
-  geom_col(position = position_dodge2(reverse = TRUE), colour = "black", width = 0.5) + 
+  geom_col(position = position_dodge2(reverse = TRUE), colour = "black", width = 0.8) + 
   scale_fill_manual(values = spalvos_scores) +
   xlab('Year') + ylab("Score") + theme_metan_minimal() +
   theme(legend.position = "top", legend.justification = "right") +
@@ -830,7 +830,7 @@ Pav_scores_A
 # Nu pagaliau gavos kaip noriu
 figB_scores$year <- as.factor(figB_scores$year)
 Pav_scores_B <- ggplot(figB_scores, aes(x = year, y = score, fill = disease)) +
-  geom_col(position = "dodge", colour = "black", width = 0.5) + 
+  geom_col(position = "dodge", colour = "black", width = 0.8) + 
   scale_fill_manual(values = spalvos_scores) +
   xlab('Year') + ylab("Score") + theme_metan_minimal() +
   theme(legend.position = "top", legend.justification = "right") +
